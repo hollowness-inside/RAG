@@ -1,0 +1,65 @@
+Candidate #1 
+Name: John Doe 
+Gender: Male 
+Age: 32 
+Occupation: Software Engineer 
+Education: Master of Science in Computer Science 
+Location: San Francisco, CA 
+Bio: John is a seasoned software engineer with a passion for developing scalable and efficient web 
+applications. He specializes in backend development and cloud architecture, constantly seeking 
+new challenges and opportunities to learn. In his free time, he enjoys hiking and exploring new 
+technologies. 
+Candidate #2 
+Name: Jane Smith 
+Gender: Female 
+Age: 28 
+Occupation: Artist 
+Art Medium: Oil Painting 
+Location: Brooklyn, NY 
+Bio: Jane is a vibrant and emerging artist known for her expressive oil paintings that often explore 
+themes of nature and human emotion. She regularly exhibits her work in local galleries and is 
+dedicated to pushing the boundaries of contemporary art. When not in her studio, she volunteers at 
+a community art center. 
+Candidate #3 
+Name: Alex Chen 
+Gender: Non-binary 
+Age: 24 
+Occupation: Freelance Writer 
+Specialty: Tech Journalism 
+Location: Seattle, WA 
+Bio: Alex is a curious and insightful freelance writer with a keen interest in technology and its 
+societal impact. They contribute articles to various online publications and are adept at translating 
+complex technical concepts into engaging narratives. Alex is also an avid board game enthusiast. 
+Candidate #4 
+Name: Maria Garcia 
+Gender: Female 
+Age: 45 
+Occupation: High School Teacher 
+Subject: History 
+Location: Austin, TX 
+Bio: Maria is a dedicated and inspiring high school history teacher with over two decades of 
+experience fostering a love for learning in her students. She employs interactive teaching methods 
+and strives to make history relevant to contemporary issues. Outside of teaching, Maria is 
+passionate about gardening and local community activism. 
+Candidate #5 
+Name: David Lee 
+Gender: Male 
+Age: 38 
+Occupation: Entrepreneur 
+Industry: E-commerce (Sustainable Goods) 
+Location: Portland, OR 
+Bio: David is a visionary entrepreneur who founded a successful e-commerce platform focused on 
+sustainable and ethically sourced products. He is committed to building businesses that not only 
+thrive financially but also contribute positively to the environment and society. In his downtime, he 
+enjoys brewing craft beer and cycling. 
+Candidate #6 
+Name: Sarah White 
+Gender: Female 
+Age: 51 
+Occupation: General Practitioner (Doctor) 
+Specialization: Family Medicine 
+Location: Denver, CO 
+Bio: Dr. Sarah White is a compassionate and experienced General Practitioner dedicated to 
+providing comprehensive healthcare to her community. She emphasizes preventative care and 
+building strong patient relationships. Beyond her medical practice, Sarah is an avid skier and enjoys 
+spending time with her family in the mountains. 

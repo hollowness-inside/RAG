@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use text_splitter::TextSplitter;
 
-const PDF_DOCUMENT: &[u8] = include_bytes!("../data/Candidates.pdf");
+const PDF_DOCUMENT: &[u8] = include_bytes!("../data/Candidates.txt");
 static PDF_TEXT: LazyLock<String> = LazyLock::new(|| {
     let text = pdf_extract::extract_text_from_mem(PDF_DOCUMENT);
     assert!(text.is_ok());

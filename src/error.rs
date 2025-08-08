@@ -1,14 +1,17 @@
+use pdf_extract::OutputError;
 use qdrant_client::QdrantError;
 
 pub type RagResult<T> = std::result::Result<T, RagError>;
 
 #[derive(Debug)]
 pub enum RagError {
+    Io(String),
     Response(String),
     Url(String),
     Rewqest(String),
     Serde(String),
     VectorDB(String),
+    PdfExtract(String),
 }
 
 impl From<reqwest::Error> for RagError {
@@ -26,5 +29,23 @@ impl From<serde_json::Error> for RagError {
 impl From<QdrantError> for RagError {
     fn from(err: QdrantError) -> Self {
         RagError::VectorDB(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for RagError {
+    fn from(err: std::io::Error) -> Self {
+        RagError::Io(err.to_string())
+    }
+}
+
+impl From<pdf_extract::Error> for RagError {
+    fn from(err: pdf_extract::Error) -> Self {
+        RagError::PdfExtract(err.to_string())
+    }
+}
+
+impl From<OutputError> for RagError {
+    fn from(err: OutputError) -> Self {
+        RagError::PdfExtract(err.to_string())
     }
 }

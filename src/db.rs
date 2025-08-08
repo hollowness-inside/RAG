@@ -32,10 +32,10 @@ pub struct QdrantDB {
 }
 
 impl QdrantDB {
-    pub async fn new(url: &str, collection: &str, vector_size: u64) -> Self {
-        let client = Qdrant::from_url(url).build().unwrap();
+    pub async fn new(url: &str, collection: &str, vector_size: u64) -> RagResult<Self> {
+        let client = Qdrant::from_url(url).build()?;
 
-        if !client.collection_exists(collection).await.unwrap() {
+        if !client.collection_exists(collection).await? {
             client
                 .create_collection(
                     CreateCollectionBuilder::new(collection).vectors_config(
@@ -43,14 +43,13 @@ impl QdrantDB {
                             .quantization_config(ScalarQuantizationBuilder::default()),
                     ),
                 )
-                .await
-                .unwrap();
+                .await?;
         }
 
-        QdrantDB {
+        Ok(QdrantDB {
             client,
             collection: collection.to_string(),
-        }
+        })
     }
 
     pub async fn connect(url: &str, collection: &str) -> Self {

@@ -1,3 +1,4 @@
 /target
 *.ps1
 /db
+hash.db

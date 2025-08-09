@@ -3,10 +3,7 @@ use ollama_rs::{
     generation::chat::{ChatMessage, request::ChatMessageRequest},
 };
 
-use crate::{
-    Embedder, FileHashStorage, HashStorage, OllamaEmbedder, QdrantDB, RagIndex, RagResult,
-    RetrievedChunk, VectorDB,
-};
+use crate::{Embedder, OllamaEmbedder, QdrantDB, RagIndex, RagResult, RetrievedChunk, VectorDB};
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
@@ -49,12 +46,12 @@ impl Default for RagConfig {
     }
 }
 
-pub struct RagChain<E: Embedder, V: VectorDB, H: HashStorage> {
-    indexer: RagIndex<E, V, H>,
+pub struct RagChain<E: Embedder, V: VectorDB> {
+    indexer: RagIndex<E, V>,
     config: RagConfig,
 }
 
-impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
+impl RagChain<OllamaEmbedder, QdrantDB> {
     pub async fn new() -> RagResult<Self> {
         Self::with_config(RagConfig::default()).await
     }
@@ -63,8 +60,7 @@ impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
         let embedder = OllamaEmbedder::new(&config.ollama_url, &config.embed_model).await?;
         let vectordb =
             QdrantDB::new(&config.qdrant_url, &config.collection, config.vector_size).await?;
-        let hash_storage = FileHashStorage::new(&config.hash_storage)?;
-        let indexer = RagIndex::new(embedder, vectordb, hash_storage, config.text_splitter_chunk);
+        let indexer = RagIndex::new(embedder, vectordb, config.text_splitter_chunk);
         Ok(Self { indexer, config })
     }
 
@@ -72,10 +68,10 @@ impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
         self.indexer.embed_directory(dir).await
     }
 
-    pub async fn ask(&mut self, query: &str) -> RagResult<ChatMessage> {
-        let chunks = self.indexer.search(query).await?;
+    pub async fn ask(&mut self, prompt: &str) -> RagResult<ChatMessage> {
+        let chunks = self.indexer.search(prompt).await?;
         let mut history = self.build_chat_history(&chunks, RAG_PROMPT).await?;
-        let response = self.rag_request(query, &mut history).await?;
+        let response = self.rag_request(prompt, &mut history).await?;
         Ok(response)
     }
 

@@ -6,6 +6,4 @@ fn test_read_pdf() {
 
     let text = text.unwrap();
     assert!(!text.is_empty(), "Extracted text should not be empty");
-
-    println!("{text}");
 }

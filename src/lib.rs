@@ -11,9 +11,6 @@ pub use embedder::{Embedder, OllamaEmbedder};
 mod db;
 pub use db::{QdrantDB, RetrievedChunk, VectorDB};
 
-mod storage;
-pub use storage::{FileHashStorage, HashStorage};
-
 mod indexer;
 pub use indexer::RagIndex;
 

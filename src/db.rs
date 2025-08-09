@@ -8,6 +8,7 @@ use qdrant_client::{
 
 use crate::{RagError, RagResult, calculate_hash};
 
+#[derive(Debug)]
 pub struct RetrievedChunk {
     pub content: String,
     pub source: String,
@@ -16,7 +17,7 @@ pub struct RetrievedChunk {
 
 pub trait VectorDB {
     async fn add_vector(&self, payload: String, source: String, vector: Vec<f32>) -> RagResult<()>;
-    async fn query_vector(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>>;
+    async fn find(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>>;
 }
 
 pub struct QdrantDB {
@@ -32,7 +33,7 @@ impl QdrantDB {
             client
                 .create_collection(
                     CreateCollectionBuilder::new(collection).vectors_config(
-                        VectorParamsBuilder::new(vector_size, Distance::Cosine)
+                        VectorParamsBuilder::new(vector_size, Distance::Euclid)
                             .quantization_config(ScalarQuantizationBuilder::default()),
                     ),
                 )
@@ -73,9 +74,9 @@ impl VectorDB for QdrantDB {
         Ok(())
     }
 
-    async fn query_vector(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>> {
+    async fn find(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>> {
         let collection = self.collection.clone();
-        let search_request = SearchPointsBuilder::new(collection, vector, 10).with_payload(true);
+        let search_request = SearchPointsBuilder::new(collection, vector, 5).with_payload(true);
 
         let chunks = self
             .client
@@ -84,13 +85,17 @@ impl VectorDB for QdrantDB {
             .result
             .iter()
             .map(|x| {
+                let content = extract(x, "value")?;
+                let source = extract(x, "source")?;
+                let similarity = x.score;
+
                 Ok(RetrievedChunk {
-                    content: extract(x, "value")?,
-                    source: extract(x, "source")?,
-                    similarity: x.score,
+                    content,
+                    source,
+                    similarity,
                 })
             })
-            .collect::<RagResult<Vec<RetrievedChunk>>>()?;
+            .collect::<RagResult<_>>()?;
         Ok(chunks)
     }
 }

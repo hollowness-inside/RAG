@@ -6,23 +6,21 @@ use std::{
 
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, HashStorage, RagResult, VectorDB, calculate_hash, db::RetrievedChunk};
+use crate::{Embedder, RagResult, VectorDB, db::RetrievedChunk};
 
-pub struct RagIndex<E: Embedder, D: VectorDB, S: HashStorage> {
+pub struct RagIndex<E: Embedder, D: VectorDB> {
     embedder: E,
     vector_db: D,
-    storage: S,
     splitter: TextSplitter<Characters>,
 }
 
-impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
-    pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
+impl<E: Embedder, D: VectorDB> RagIndex<E, D> {
+    pub fn new(embedder: E, vector_db: D, text_splitter: usize) -> Self {
         let splitter = TextSplitter::new(text_splitter);
 
         RagIndex {
             embedder,
             vector_db,
-            storage,
             splitter,
         }
     }
@@ -39,11 +37,6 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
     }
 
     pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
-        let hash = calculate_hash(&text);
-        if self.storage.contains(hash)? {
-            return Ok(());
-        }
-
         let chunks = self.splitter.chunks(&text);
         for chunk in chunks {
             let vector = self.embedder.embed(chunk).await?;
@@ -51,8 +44,7 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
                 .add_vector(chunk.to_string(), source.clone(), vector)
                 .await?;
         }
-
-        self.storage.insert(hash)
+        Ok(())
     }
 
     async fn process_file(&mut self, path: PathBuf) -> RagResult<bool> {
@@ -77,7 +69,7 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
 
     pub async fn search(&mut self, prompt: &str) -> RagResult<Vec<RetrievedChunk>> {
         let vector = self.embedder.embed(prompt).await?;
-        let x = self.vector_db.query_vector(vector).await?;
-        Ok(x)
+        let chunks = self.vector_db.find(vector).await?;
+        Ok(chunks)
     }
 }

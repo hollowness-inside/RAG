@@ -28,9 +28,10 @@ async fn main() {
     let mut history = vec![ChatMessage::system(RAG_PROMPT.to_string())];
 
     for res in response {
-        let mut s = "[SOURCE] ".to_string();
-        s.push_str(&res.0);
-        history.push(ChatMessage::assistant(s))
+        let mut content = res.content;
+        content.push_str("[SOURCE] ");
+        content.push_str(&res.source);
+        history.push(ChatMessage::assistant(content))
     }
 
     let res = ollama

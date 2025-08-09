@@ -1,8 +1,8 @@
-use std::{fs, path::Path};
+use std::{ffi::OsStr, fs, path::Path};
 
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, HashStorage, RagResult, VectorDB, calculate_hash};
+use crate::{Embedder, HashStorage, RagResult, VectorDB, calculate_hash, db::RetrievedChunk};
 
 pub struct EmbeddingStorage<E: Embedder, D: VectorDB, S: HashStorage> {
     embedder: E,
@@ -12,12 +12,7 @@ pub struct EmbeddingStorage<E: Embedder, D: VectorDB, S: HashStorage> {
 }
 
 impl<E: Embedder, D: VectorDB, S: HashStorage> EmbeddingStorage<E, D, S> {
-    pub fn new(
-        embedder: E,
-        vector_db: D,
-        storage: S,
-        text_splitter: usize,
-    ) -> Self {
+    pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
         let splitter = TextSplitter::new(text_splitter);
 
         EmbeddingStorage {
@@ -38,36 +33,41 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> EmbeddingStorage<E, D, S> {
             if path.is_file() {
                 let text = match path.extension() {
                     Some(ext) if ext == "pdf" => pdf_extract::extract_text(&path)?,
-                    Some(ext) if ext == "txt" => fs::read_to_string(path)?,
+                    Some(ext) if ext == "txt" => fs::read_to_string(&path)?,
                     _ => continue,
                 };
 
-                self.embed_text(&text).await?;
+                let filename = path
+                    .file_name()
+                    .unwrap_or(OsStr::new("unknown"))
+                    .to_string_lossy()
+                    .to_string();
+
+                self.embed_text(text, filename).await?;
             }
         }
 
         Ok(())
     }
 
-    pub async fn embed_text(&mut self, text: &str) -> RagResult<()> {
-        let hash = calculate_hash(&text.to_string());
+    pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
+        let hash = calculate_hash(&text);
         if self.storage.contains(hash)? {
             return Ok(());
         }
 
-        let chunks = self.splitter.chunks(text);
+        let chunks = self.splitter.chunks(&text);
         for chunk in chunks {
             let vector = self.embedder.embed(chunk).await?;
-            self.vector_db.add_vector(chunk, vector).await?;
+            self.vector_db
+                .add_vector(chunk.to_string(), source.clone(), vector)
+                .await?;
         }
 
         self.storage.insert(hash)
     }
 
-    pub async fn search_embedding(
-        &mut self,
-        text: &str,
-    ) -> RagResult<Vec<(String, f32)>> {
+    pub async fn search_embedding(&mut self, text: &str) -> RagResult<Vec<RetrievedChunk>> {
         let vector = self.embedder.embed(text).await?;
         let x = self.vector_db.query_vector(vector).await?;
         Ok(x)

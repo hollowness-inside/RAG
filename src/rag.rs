@@ -2,25 +2,23 @@ use std::{fs, path::Path};
 
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, RagResult, VectorDB, calculate_hash};
+use crate::{Embedder, RagResult, Storage, VectorDB, calculate_hash};
 
-const HASH_DB: &str = "hash.db";
-
-pub struct Rag<E: Embedder, D: VectorDB> {
+pub struct Rag<E: Embedder, D: VectorDB, S: Storage> {
     embedder: E,
     vector_db: D,
+    storage: S,
     splitter: TextSplitter<Characters>,
 }
 
-impl<E: Embedder, D: VectorDB> Rag<E, D> {
-    pub fn new(embedder: E, vector_db: D, text_splitter: usize) -> Self {
+impl<E: Embedder, D: VectorDB, S: Storage> Rag<E, D, S> {
+    pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
         let splitter = TextSplitter::new(text_splitter);
-
-        Self::init_hash_db();
 
         Rag {
             embedder,
             vector_db,
+            storage,
             splitter,
         }
     }
@@ -48,18 +46,17 @@ impl<E: Embedder, D: VectorDB> Rag<E, D> {
 
     pub async fn embed_text(&mut self, text: &str) -> RagResult<()> {
         let hash = calculate_hash(&text.to_string());
-        if Self::has_hash(hash) {
+        if self.storage.contains(hash)? {
             return Ok(());
         }
 
         let chunks = self.splitter.chunks(text);
         for chunk in chunks {
-            let vector = self.embedder.embed(&chunk).await?;
+            let vector = self.embedder.embed(chunk).await?;
             self.vector_db.add_vector(chunk, vector).await?;
         }
 
-        Self::add_hash(hash);
-        Ok(())
+        self.storage.insert(hash)
     }
 
     pub async fn search_embedding(
@@ -69,26 +66,5 @@ impl<E: Embedder, D: VectorDB> Rag<E, D> {
         let vector = self.embedder.embed(text).await?;
         let x = self.vector_db.query_vector(vector).await?;
         Ok(x)
-    }
-
-    fn init_hash_db() {
-        if !Path::new(HASH_DB).exists() {
-            fs::File::create(HASH_DB).unwrap();
-        }
-    }
-
-    fn has_hash(hash: u64) -> bool {
-        let data = fs::read(HASH_DB).unwrap();
-        data.chunks_exact(8)
-            .into_iter()
-            .map(|x| u64::from_le_bytes(x.try_into().unwrap()))
-            .find(|&x| x == hash)
-            .is_some()
-    }
-
-    fn add_hash(hash: u64) {
-        let mut data = fs::read(HASH_DB).unwrap_or_default();
-        data.extend_from_slice(&hash.to_le_bytes());
-        fs::write(HASH_DB, data).unwrap();
     }
 }

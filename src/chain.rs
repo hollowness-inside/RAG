@@ -17,8 +17,6 @@ pub struct RagConfig {
     pub qdrant_url: String,
     pub collection: String,
 
-    pub hash_storage: String,
-
     pub top_k: usize,
     pub min_similarity: f32,
     pub vector_size: u64,
@@ -35,8 +33,6 @@ impl Default for RagConfig {
 
             qdrant_url: "http://localhost:6334".to_string(),
             collection: "rag".to_string(),
-
-            hash_storage: "hash.db".to_string(),
 
             top_k: 5,
             min_similarity: 0.4,

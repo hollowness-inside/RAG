@@ -1,29 +1,25 @@
-use ollama_rs::generation::chat::{ChatMessage, request::ChatMessageRequest};
-use rag::{EmbeddingStorage, FileHashStorage, OllamaEmbedder, QdrantDB};
+use ollama_rs::{
+    Ollama,
+    generation::chat::{ChatMessage, request::ChatMessageRequest},
+};
+use rag::{EmbeddingStorage, FileHashStorage, OllamaEmbedder, QdrantDB, RagResult};
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
 #[tokio::main]
-async fn main() {
-    let embedder = OllamaEmbedder::new("http://localhost:11434", "mxbai-embed-large")
-        .await
-        .unwrap();
+async fn main() -> RagResult<()> {
+    let embedder = OllamaEmbedder::new("http://localhost:11434", "mxbai-embed-large").await?;
 
-    let vector_db = QdrantDB::new("http://localhost:6334", "rag", 1024)
-        .await
-        .unwrap();
+    let vector_db = QdrantDB::new("http://localhost:6334", "rag", 1024).await?;
 
     let hash_storage = FileHashStorage::new("hash.db").unwrap();
 
     let mut embedder_storage = EmbeddingStorage::new(embedder, vector_db, hash_storage, 1024);
-    embedder_storage.embed_directory("data").await.unwrap();
+    embedder_storage.embed_directory("data").await?;
 
-    let response = embedder_storage
-        .search_embedding("SensorPacket")
-        .await
-        .unwrap();
+    let response = embedder_storage.search_embedding("SensorPacket").await?;
 
-    let mut ollama = ollama_rs::Ollama::default();
+    let mut ollama = Ollama::default();
 
     let mut history = vec![ChatMessage::system(RAG_PROMPT.to_string())];
 
@@ -44,8 +40,8 @@ async fn main() {
                 )],
             ),
         )
-        .await
-        .unwrap();
+        .await?;
 
-    println!("{:#?}", res.message.content);
+    println!("{}", res.message.content);
+    Ok(())
 }

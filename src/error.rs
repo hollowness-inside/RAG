@@ -1,3 +1,4 @@
+use ollama_rs::error::OllamaError;
 use pdf_extract::OutputError;
 use qdrant_client::QdrantError;
 
@@ -12,6 +13,7 @@ pub enum RagError {
     Serde(String),
     VectorDB(String),
     PdfExtract(String),
+    Ollama(String),
 }
 
 impl From<reqwest::Error> for RagError {
@@ -47,5 +49,11 @@ impl From<pdf_extract::Error> for RagError {
 impl From<OutputError> for RagError {
     fn from(err: OutputError) -> Self {
         RagError::PdfExtract(err.to_string())
+    }
+}
+
+impl From<OllamaError> for RagError {
+    fn from(err: OllamaError) -> Self {
+        RagError::Ollama(err.to_string())
     }
 }

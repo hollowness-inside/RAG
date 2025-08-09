@@ -12,8 +12,8 @@ pub use db::{QdrantDB, VectorDB};
 mod storage;
 pub use storage::{FileHashStorage, HashStorage};
 
-mod rag;
-pub use rag::Rag;
+mod embeding_storage;
+pub use embeding_storage::EmbeddingStorage;
 
 pub fn calculate_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = DefaultHasher::new();

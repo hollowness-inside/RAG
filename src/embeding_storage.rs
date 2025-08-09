@@ -2,20 +2,25 @@ use std::{fs, path::Path};
 
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, RagResult, HashStorage, VectorDB, calculate_hash};
+use crate::{Embedder, HashStorage, RagResult, VectorDB, calculate_hash};
 
-pub struct Rag<E: Embedder, D: VectorDB, S: HashStorage> {
+pub struct EmbeddingStorage<E: Embedder, D: VectorDB, S: HashStorage> {
     embedder: E,
     vector_db: D,
     storage: S,
     splitter: TextSplitter<Characters>,
 }
 
-impl<E: Embedder, D: VectorDB, S: HashStorage> Rag<E, D, S> {
-    pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
+impl<E: Embedder, D: VectorDB, S: HashStorage> EmbeddingStorage<E, D, S> {
+    pub fn new(
+        embedder: E,
+        vector_db: D,
+        storage: S,
+        text_splitter: usize,
+    ) -> Self {
         let splitter = TextSplitter::new(text_splitter);
 
-        Rag {
+        EmbeddingStorage {
             embedder,
             vector_db,
             storage,
@@ -62,7 +67,7 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> Rag<E, D, S> {
     pub async fn search_embedding(
         &mut self,
         text: &str,
-    ) -> RagResult<Vec<(std::string::String, f32)>> {
+    ) -> RagResult<Vec<(String, f32)>> {
         let vector = self.embedder.embed(text).await?;
         let x = self.vector_db.query_vector(vector).await?;
         Ok(x)

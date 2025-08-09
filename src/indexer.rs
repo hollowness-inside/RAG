@@ -1,4 +1,8 @@
-use std::{ffi::OsStr, fs, path::Path};
+use std::{
+    ffi::OsStr,
+    fs::{self},
+    path::{Path, PathBuf},
+};
 
 use text_splitter::{Characters, TextSplitter};
 
@@ -27,27 +31,31 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
         let entries = std::fs::read_dir(path)?;
 
         for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_file() {
-                let text = match path.extension() {
-                    Some(ext) if ext == "pdf" => pdf_extract::extract_text(&path)?,
-                    Some(ext) if ext == "txt" => fs::read_to_string(&path)?,
-                    _ => continue,
-                };
-
-                let filename = path
-                    .file_name()
-                    .unwrap_or(OsStr::new("unknown"))
-                    .to_string_lossy()
-                    .to_string();
-
-                self.embed_text(text, filename).await?;
-            }
+            let path = entry?.path();
+            self.process_file(path).await?;
         }
 
         Ok(())
+    }
+
+    async fn process_file(&mut self, path: PathBuf) -> RagResult<bool> {
+        if path.is_file() {
+            let text = match path.extension() {
+                Some(ext) if ext == "pdf" => pdf_extract::extract_text(&path)?,
+                Some(ext) if ext == "txt" => fs::read_to_string(&path)?,
+                _ => return Ok(false),
+            };
+
+            let filename = path
+                .file_name()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_string_lossy()
+                .to_string();
+
+            self.embed_text(text, filename).await?;
+        }
+
+        Ok(true)
     }
 
     pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
@@ -67,8 +75,8 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
         self.storage.insert(hash)
     }
 
-    pub async fn search_embedding(&mut self, text: &str) -> RagResult<Vec<RetrievedChunk>> {
-        let vector = self.embedder.embed(text).await?;
+    pub async fn search_embedding(&mut self, prompt: &str) -> RagResult<Vec<RetrievedChunk>> {
+        let vector = self.embedder.embed(prompt).await?;
         let x = self.vector_db.query_vector(vector).await?;
         Ok(x)
     }

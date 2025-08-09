@@ -4,18 +4,18 @@ use text_splitter::{Characters, TextSplitter};
 
 use crate::{Embedder, HashStorage, RagResult, VectorDB, calculate_hash, db::RetrievedChunk};
 
-pub struct EmbeddingStorage<E: Embedder, D: VectorDB, S: HashStorage> {
+pub struct RagIndex<E: Embedder, D: VectorDB, S: HashStorage> {
     embedder: E,
     vector_db: D,
     storage: S,
     splitter: TextSplitter<Characters>,
 }
 
-impl<E: Embedder, D: VectorDB, S: HashStorage> EmbeddingStorage<E, D, S> {
+impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
     pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
         let splitter = TextSplitter::new(text_splitter);
 
-        EmbeddingStorage {
+        RagIndex {
             embedder,
             vector_db,
             storage,

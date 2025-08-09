@@ -2,22 +2,29 @@ use ollama_rs::{
     Ollama,
     generation::chat::{ChatMessage, request::ChatMessageRequest},
 };
-use rag::{EmbeddingStorage, FileHashStorage, OllamaEmbedder, QdrantDB, RagResult};
+use rag::{FileHashStorage, OllamaEmbedder, QdrantDB, RagIndex, RagResult};
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
 #[tokio::main]
 async fn main() -> RagResult<()> {
-    let embedder = OllamaEmbedder::new("http://localhost:11434", "mxbai-embed-large").await?;
+    const VECTOR_SIZE: u64 = 1024;
+    const TEXT_SPLITTER_CHUNK: usize = 1024;
 
-    let vector_db = QdrantDB::new("http://localhost:6334", "rag", 1024).await?;
+    const OLLAMA_MODEL: &str = "mxbai-embed-large";
+    const OLLAMA_URL: &str = "http://localhost:11434";
 
-    let hash_storage = FileHashStorage::new("hash.db").unwrap();
+    const QDRANT_URL: &str = "http://localhost:6334";
+    const QDRANT_COLLECTION: &str = "rag";
 
-    let mut embedder_storage = EmbeddingStorage::new(embedder, vector_db, hash_storage, 1024);
-    embedder_storage.embed_directory("data").await?;
+    let embedder = OllamaEmbedder::new(OLLAMA_URL, OLLAMA_MODEL).await?;
+    let vector_db = QdrantDB::new(QDRANT_URL, QDRANT_COLLECTION, VECTOR_SIZE).await?;
+    let hash_storage = FileHashStorage::new("hash.db")?;
 
-    let response = embedder_storage.search_embedding("SensorPacket").await?;
+    let mut indexer = RagIndex::new(embedder, vector_db, hash_storage, TEXT_SPLITTER_CHUNK);
+    indexer.embed_directory("data").await?;
+
+    let response = indexer.search_embedding("SensorPacket").await?;
 
     let mut ollama = Ollama::default();
 

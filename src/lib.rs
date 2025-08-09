@@ -10,7 +10,7 @@ mod db;
 pub use db::{QdrantDB, VectorDB};
 
 mod storage;
-pub use storage::{FileStorage, Storage};
+pub use storage::{FileHashStorage, HashStorage};
 
 mod rag;
 pub use rag::Rag;

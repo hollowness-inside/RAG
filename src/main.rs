@@ -1,4 +1,4 @@
-use rag::{FileStorage, OllamaEmbedder, QdrantDB, Rag};
+use rag::{FileHashStorage, OllamaEmbedder, QdrantDB, Rag};
 
 #[tokio::main]
 async fn main() {
@@ -10,11 +10,11 @@ async fn main() {
         .await
         .unwrap();
 
-    let storage = FileStorage::new("hash.db");
+    let storage = FileHashStorage::new("hash.db").unwrap();
 
-    let mut rag = Rag::new(embedder, vector_db, storage, 700);
+    let mut rag = Rag::new(embedder, vector_db, storage, 1024);
     rag.embed_directory("data").await.unwrap();
 
-    let response = rag.search_embedding("Maria Garcia").await.unwrap();
+    let response = rag.search_embedding("SensorPacket").await.unwrap();
     println!("{:#?}", response);
 }

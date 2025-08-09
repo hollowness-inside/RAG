@@ -1,0 +1,195 @@
+Document ID: AGEMS-SA-2025-v1.2
+Document Title: System Architecture and Technical Specification for the Aetheria Global Environmental Monitoring System (AGEMS)
+Date: August 7, 2025
+Status: Final Draft
+
+1.0 Introduction
+
+1.1 Purpose
+This document provides a comprehensive technical overview and architectural specification for the Aetheria Global Environmental Monitoring System (AGEMS). It details the system's architecture, components, data flow protocols, and operational logic. This document is intended for system architects, software and hardware engineers, and operations personnel involved in the development, deployment, and maintenance of the AGEMS platform.
+
+1.2 System Overview and Goals
+AGEMS is a distributed, multi-tiered system designed for the large-scale, real-time collection, processing, and analysis of terrestrial and atmospheric environmental data. The primary goal of the system is to provide a high-fidelity, low-latency data stream and historical data repository for climate science research, environmental policy enforcement, and predictive ecological modeling.
+
+The system is designed to achieve the following core objectives:
+
+Scalability: Ingest data from an initial deployment of 100,000 sensor nodes, with the capacity to scale to over 10 million nodes without architectural redesign.
+
+Low Latency: Ensure a P95 latency of less than 2 seconds from data acquisition at the sensor to its availability for query in the real-time analysis layer.
+
+High Availability: Guarantee 99.99% uptime for the data ingestion and core processing layers through fault-tolerant design and geo-redundancy.
+
+Data Integrity: Maintain end-to-end data integrity and security through robust encryption, checksums, and immutable storage practices.
+
+1.3 Scope
+This document covers the end-to-end architecture of AGEMS, including the remote sensor hardware, data transport protocols, cloud-based ingestion and processing services, and data access APIs. It does not cover the specifics of downstream machine learning models, end-user client applications, or the physical manufacturing process of the sensor units.
+
+1.4 Definitions, Acronyms, and Abbreviations
+
+AGEMS: Aetheria Global Environmental Monitoring System
+
+DSU: Distributed Sensor Unit. The remote, physical hardware deployed in the field.
+
+IGP: Ingestion Gateway Protocol. The proprietary, lightweight protocol for data transport.
+
+CPP: Core Processing Platform. The cloud-based infrastructure for data handling.
+
+AAL: Analysis and Access Layer. The set of services providing data to end-users.
+
+MQTT: Message Queuing Telemetry Transport.
+
+TLS: Transport Layer Security.
+
+JSON: JavaScript Object Notation.
+
+Protobuf: Protocol Buffers.
+
+ETL: Extract, Transform, Load.
+
+P95 Latency: The 95th percentile latency value.
+
+2.0 System Architecture
+
+2.1 Architectural Model
+AGEMS is implemented as a four-tiered, service-oriented architecture. This model decouples data acquisition, transport, processing, and analysis, allowing for independent scaling, maintenance, and upgrading of each layer. The architecture prioritizes asynchronous communication and immutable data structures to enhance resilience and scalability.
+
+2.2 High-Level Architecture Diagram
+(Textual Description)
+The architecture consists of four horizontal layers.
+
+Tier 1 (Edge): A wide distribution of DSUs, each collecting local data.
+
+Tier 2 (Transport): DSUs communicate via cellular or satellite links to regional Ingestion Gateways, which act as load-balanced endpoints.
+
+Tier 3 (Cloud Core): The regional gateways stream data into the centralized CPP. The CPP consists of a message queueing system, a real-time stream processing engine, and a multi-modal data storage solution (data lake, time-series DB, and relational warehouse).
+
+Tier 4 (Access): The AAL provides RESTful APIs, WebSocket streams, and direct database connectors for querying and retrieving data processed by the CPP.
+
+3.0 Component Deep Dive
+
+3.1 Tier 1: Distributed Sensor Unit (DSU)
+The DSU is a self-contained, ruggedized hardware unit responsible for data acquisition and transmission.
+
+3.1.1 Hardware Specifications
+
+Microcontroller: ARM Cortex-M4F 32-bit MCU @ 120MHz.
+
+Memory: 1MB internal Flash, 256KB SRAM.
+
+Sensors (Standard Suite):
+
+Bosch BME688 (Temperature, Humidity, Barometric Pressure, VOCs)
+
+Plantower PMS7003 (Particulate Matter: PM1.0, PM2.5, PM10)
+
+U-blox ZED-F9P (High-precision GNSS for location and timing)
+
+Onboard MEMS microphone for ambient acoustic analysis.
+
+Connectivity: Sierra Wireless HL7800 module providing LTE-M/NB-IoT cellular connectivity. Iridium 9603N module for satellite backup in remote regions.
+
+Power: 20W solar panel coupled with a 10,000mAh LiFePO4 battery pack and an MPPT charge controller, designed for 5-year operational life without maintenance.
+
+3.1.2 Software Stack
+
+Operating System: Zephyr RTOS.
+
+Firmware: Custom C++ application firmware implementing sensor polling, data packetization, power management, and communication logic. Firmware updates are delivered over-the-air (FOTA) via a secure, signed binary push from the CPP.
+
+Data Collection Daemon: A scheduler task that wakes every 60 seconds (configurable) to poll all sensors, timestamp the reading using the GNSS module's Pulse-Per-Second (PPS) output for microsecond accuracy, and enqueue the data packet for transmission.
+
+3.1.3 Data Packet Structure
+Data is packetized using Protocol Buffers (Protobuf) for efficient serialization. A typical packet contains:
+
+code
+Protobuf
+download
+content_copy
+expand_less
+
+message SensorPacket {
+  uint64 dsu_id = 1;         // Unique 64-bit ID of the DSU
+  uint64 timestamp_utc_us = 2; // Microsecond-precision UNIX timestamp
+  sint32 latitude = 3;         // Degrees * 10^-7
+  sint32 longitude = 4;        // Degrees * 10^-7
+  sint32 altitude_mm = 5;      // Millimeters above sea level
+  float temperature_c = 6;    // Degrees Celsius
+  float humidity_rh = 7;      // Relative Humidity %
+  float pressure_pa = 8;      // Pascals
+  // ... other sensor fields ...
+  bytes checksum = 20;       // SHA-256 checksum of the packet payload
+}
+
+3.2 Tier 2: Ingestion Gateway Protocol (IGP) and Transport
+The IGP is a secure, lightweight message-oriented protocol running over UDP. While MQTT is used for command-and-control messages (like FOTA commands), IGP is used for the high-volume telemetry stream to minimize overhead.
+
+3.2.1 Protocol Specification: The protocol defines a simple header containing packet sequence number and DSU ID, followed by the Protobuf-serialized payload. It includes a basic ACK/NACK mechanism for guaranteed delivery, with exponential backoff on the DSU side.
+
+3.2.2 Data Encryption: Each DSU is provisioned with a unique X.509 certificate. The UDP payload is encrypted using a session key negotiated via a DTLS handshake (a variant of TLS for datagram protocols) with the regional gateway.
+
+3.2.3 Load Balancing: Regional gateways are deployed behind a network load balancer (NLB). DNS-based geo-routing directs each DSU to the nearest regional gateway cluster to minimize network latency.
+
+3.3 Tier 3: Core Processing Platform (CPP)
+The CPP is a cloud-native platform built on Kubernetes.
+
+3.3.1 Ingestion Service: Gateway servers publish the incoming decrypted data packets directly onto an Apache Kafka cluster. The data is partitioned by DSU ID to ensure ordered processing for each sensor.
+
+3.3.2 Real-Time Stream Processing: An Apache Flink application consumes the data from Kafka. Its jobs perform the following in real-time:
+
+Validation & Enrichment: Validates packet checksums and enriches the data with reverse-geocoded metadata (e.g., country, administrative region).
+
+Hot Path: Pushes the validated, enriched data directly into a M3DB or VictoriaMetrics cluster (a distributed time-series database) for immediate dashboarding and alerting.
+
+Cold Path: Writes the raw, validated data to a data lake (e.g., AWS S3 or GCS) in Apache Parquet format, partitioned by day and sensor type, for long-term storage and batch analytics.
+
+3.3.3 Data Warehouse: A nightly batch ETL process, orchestrated by Apache Airflow, loads data from the Parquet files in the data lake into a cloud data warehouse (e.g., Snowflake or Google BigQuery). This warehouse is optimized for complex, large-scale analytical queries over historical data.
+
+3.4 Tier 4: Analysis and Access Layer (AAL)
+The AAL exposes the processed data to users and applications.
+
+3.4.1 RESTful API: A primary RESTful API, built using Go, provides queryable endpoints for both time-series and historical data. For example, GET /api/v1/timeseries?dsu_id=...&start=...&end=... retrieves hot-path data, while GET /api/v1/analytics/aggregate?region=... triggers a query against the data warehouse.
+
+3.4.2 Authentication and Authorization: All API endpoints are secured using the OAuth 2.0 Client Credentials flow. Scopes are used to grant fine-grained access to different data types and aggregation levels.
+
+3.4.3 Data Visualization Dashboard: A pre-built Grafana instance is provided for internal and partner use, with direct data source connections to the time-series database and the data warehouse for creating real-time dashboards and reports.
+
+4.0 Data Flow and Processing Logic
+
+A single data measurement undergoes the following lifecycle:
+
+The DSU's daemon polls the sensors and timestamps the reading.
+
+The reading is serialized into a Protobuf message.
+
+The DSU establishes a DTLS session with its designated regional gateway.
+
+The serialized packet is sent via the encrypted IGP/UDP transport.
+
+The gateway decrypts the packet, validates it, and publishes it to the appropriate Kafka topic.
+
+The Flink streaming application consumes the message from Kafka within milliseconds.
+
+The Flink job writes the data to the time-series database (available for query) and archives it to the data lake.
+
+The end-to-end P95 latency from step 1 to step 7 is maintained below 2 seconds.
+
+Within 24 hours, the data from the lake is loaded into the analytical data warehouse.
+
+5.0 System Non-Functional Requirements
+
+5.1 Scalability: The use of Kafka and horizontally scalable stream processors (Flink) and databases (M3DB, BigQuery) allows the system to scale linearly by adding more nodes to the respective clusters.
+5.2 Reliability: The Kafka cluster is replicated across 3 availability zones. The Flink application runs with checkpointing and savepoints enabled for rapid recovery. DSUs store up to 72 hours of data locally and will re-transmit upon re-establishing a connection.
+5.3 Security: End-to-end encryption is mandatory. Access to the CPP is restricted via private networking and IAM roles. All data at rest is encrypted using AES-256. Regular penetration testing is part of the operational lifecycle.
+5.4 Latency: Latency is monitored via synthetic canary DSUs deployed globally. Alerts are triggered if P95 latency exceeds the 2-second SLA.
+
+6.0 Conclusion and Future Work
+
+The AGEMS architecture represents a robust and scalable platform for global environmental data collection. By decoupling components and leveraging proven cloud-native technologies, it is designed for long-term reliability and extensibility.
+
+Future planned enhancements include:
+
+V2 DSU: Integration of hyperspectral imaging sensors and DNA samplers for biodiversity tracking.
+
+Predictive Modeling: Deployment of pre-trained TensorFlow models directly onto the Flink stream processing pipeline for real-time anomaly detection and event forecasting (e.g., wildfire risk, air quality alerts).
+
+Federated Learning: Developing a framework to train models on the DSU fleet without centralizing raw sensor data, preserving privacy and reducing bandwidth requirements.

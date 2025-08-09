@@ -5,24 +5,24 @@ use std::{
 
 use crate::RagResult;
 
-pub trait Storage {
+pub trait HashStorage {
     fn contains(&self, hash: u64) -> RagResult<bool>;
     fn insert(&mut self, hash: u64) -> RagResult<()>;
 }
 
-pub struct FileStorage(PathBuf);
+pub struct FileHashStorage(PathBuf);
 
-impl FileStorage {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        if path.as_ref().exists() {
-            File::create(&path).unwrap();
+impl FileHashStorage {
+    pub fn new<P: AsRef<Path>>(path: P) -> RagResult<Self> {
+        if !path.as_ref().exists() {
+            File::create(&path)?;
         }
 
-        Self(path.as_ref().into())
+        Ok(Self(path.as_ref().into()))
     }
 }
 
-impl Storage for FileStorage {
+impl HashStorage for FileHashStorage {
     fn contains(&self, hash: u64) -> RagResult<bool> {
         Ok(std::fs::read(&self.0)?
             .chunks_exact(8)

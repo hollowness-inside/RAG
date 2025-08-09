@@ -2,16 +2,16 @@ use std::{fs, path::Path};
 
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, RagResult, Storage, VectorDB, calculate_hash};
+use crate::{Embedder, RagResult, HashStorage, VectorDB, calculate_hash};
 
-pub struct Rag<E: Embedder, D: VectorDB, S: Storage> {
+pub struct Rag<E: Embedder, D: VectorDB, S: HashStorage> {
     embedder: E,
     vector_db: D,
     storage: S,
     splitter: TextSplitter<Characters>,
 }
 
-impl<E: Embedder, D: VectorDB, S: Storage> Rag<E, D, S> {
+impl<E: Embedder, D: VectorDB, S: HashStorage> Rag<E, D, S> {
     pub fn new(embedder: E, vector_db: D, storage: S, text_splitter: usize) -> Self {
         let splitter = TextSplitter::new(text_splitter);
 

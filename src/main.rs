@@ -11,7 +11,7 @@ async fn main() -> RagResult<()> {
 
     chain.embed_directory("./data/").await?;
 
-    let response = chain.ask("CPP").await?;
+    let response = chain.ask("Who is Elara?").await?;
     println!("Response: {:?}", response.content);
     Ok(())
 }

@@ -1,6 +1,7 @@
 use ollama_rs::error::OllamaError;
 use pdf_extract::OutputError;
 use qdrant_client::QdrantError;
+use reqwest::header::InvalidHeaderValue;
 
 pub type RagResult<T> = std::result::Result<T, RagError>;
 
@@ -9,16 +10,17 @@ pub enum RagError {
     Io(String),
     Response(String),
     Url(String),
-    Rewqest(String),
     Serde(String),
     VectorDB(String),
     PdfExtract(String),
     Ollama(String),
+    Payload(String),
+    Request(String),
 }
 
 impl From<reqwest::Error> for RagError {
     fn from(err: reqwest::Error) -> Self {
-        RagError::Rewqest(err.to_string())
+        RagError::Request(err.to_string())
     }
 }
 
@@ -55,5 +57,11 @@ impl From<OutputError> for RagError {
 impl From<OllamaError> for RagError {
     fn from(err: OllamaError) -> Self {
         RagError::Ollama(err.to_string())
+    }
+}
+
+impl From<InvalidHeaderValue> for RagError {
+    fn from(err: InvalidHeaderValue) -> Self {
+        RagError::Request(err.to_string())
     }
 }

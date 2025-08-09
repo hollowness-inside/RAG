@@ -38,6 +38,23 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
         Ok(())
     }
 
+    pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
+        let hash = calculate_hash(&text);
+        if self.storage.contains(hash)? {
+            return Ok(());
+        }
+
+        let chunks = self.splitter.chunks(&text);
+        for chunk in chunks {
+            let vector = self.embedder.embed(chunk).await?;
+            self.vector_db
+                .add_vector(chunk.to_string(), source.clone(), vector)
+                .await?;
+        }
+
+        self.storage.insert(hash)
+    }
+
     async fn process_file(&mut self, path: PathBuf) -> RagResult<bool> {
         if path.is_file() {
             let text = match path.extension() {
@@ -58,24 +75,7 @@ impl<E: Embedder, D: VectorDB, S: HashStorage> RagIndex<E, D, S> {
         Ok(true)
     }
 
-    pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
-        let hash = calculate_hash(&text);
-        if self.storage.contains(hash)? {
-            return Ok(());
-        }
-
-        let chunks = self.splitter.chunks(&text);
-        for chunk in chunks {
-            let vector = self.embedder.embed(chunk).await?;
-            self.vector_db
-                .add_vector(chunk.to_string(), source.clone(), vector)
-                .await?;
-        }
-
-        self.storage.insert(hash)
-    }
-
-    pub async fn search_embedding(&mut self, prompt: &str) -> RagResult<Vec<RetrievedChunk>> {
+    pub async fn search(&mut self, prompt: &str) -> RagResult<Vec<RetrievedChunk>> {
         let vector = self.embedder.embed(prompt).await?;
         let x = self.vector_db.query_vector(vector).await?;
         Ok(x)

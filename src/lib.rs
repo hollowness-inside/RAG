@@ -1,3 +1,5 @@
+#![allow(async_fn_in_trait)]
+
 mod error;
 use std::hash::{DefaultHasher, Hash, Hasher};
 

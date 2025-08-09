@@ -10,6 +10,7 @@ use crate::{
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
+#[derive(Debug, Clone)]
 pub struct RagConfig {
     pub ollama_url: String,
 
@@ -54,6 +55,10 @@ pub struct RagChain<E: Embedder, V: VectorDB, H: HashStorage> {
 }
 
 impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
+    pub async fn new() -> RagResult<Self> {
+        Self::with_config(RagConfig::default()).await
+    }
+
     pub async fn with_config(config: RagConfig) -> RagResult<Self> {
         let embedder = OllamaEmbedder::new(&config.ollama_url, &config.embed_model).await?;
         let vectordb =
@@ -68,7 +73,7 @@ impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
     }
 
     pub async fn ask(&mut self, query: &str) -> RagResult<ChatMessage> {
-        let chunks = self.indexer.search_embedding(query).await?;
+        let chunks = self.indexer.search(query).await?;
         let mut history = self.build_chat_history(&chunks, RAG_PROMPT).await?;
         let response = self.rag_request(query, &mut history).await?;
         Ok(response)
@@ -98,14 +103,28 @@ impl RagChain<OllamaEmbedder, QdrantDB, FileHashStorage> {
         chunks: &[RetrievedChunk],
         base_prompt: &str,
     ) -> RagResult<Vec<ChatMessage>> {
+        const CHUNK_START: &str = "=== DOCUMENT CHUNK START ===\n";
+        const CHUNK_END: &str = "\n=== DOCUMENT CHUNK END ===";
+        const SOURCE: &str = "\n[SOURCE] ";
+
         let retrieved = chunks
             .iter()
             .take(self.config.top_k)
             .filter(|p| p.similarity >= self.config.min_similarity)
             .map(|res| {
-                let mut content = res.content.clone();
-                content.push_str("[SOURCE] ");
+                let mut content = String::with_capacity(
+                    res.content.len()
+                        + res.source.len()
+                        + CHUNK_START.len()
+                        + CHUNK_END.len()
+                        + SOURCE.len(),
+                );
+
+                content.push_str(CHUNK_START);
+                content.push_str(&res.content);
+                content.push_str(SOURCE);
                 content.push_str(&res.source);
+                content.push_str(CHUNK_END);
                 ChatMessage::system(content)
             });
 

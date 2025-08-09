@@ -1,11 +1,11 @@
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
 
 use reqwest::{Client, IntoUrl, Method, Request, Url, redirect::Policy};
 
 use crate::error::{RagError, RagResult};
 
 pub trait Embedder {
-    fn embed(&self, text: &str) -> impl Future<Output = RagResult<Vec<f32>>> + Send;
+    async fn embed(&self, text: &str) -> RagResult<Vec<f32>>;
 }
 
 pub struct OllamaEmbedder {
@@ -34,12 +34,11 @@ impl Embedder for OllamaEmbedder {
             .map_err(|e| RagError::Url(e.to_string()))?;
 
         let mut request = Request::new(Method::POST, url);
-        request.headers_mut().insert(
-            reqwest::header::CONTENT_TYPE,
-            "application/x-www-form-urlencoded".parse().unwrap(),
-        );
+        request
+            .headers_mut()
+            .insert(reqwest::header::CONTENT_TYPE, "application/json".parse()?);
 
-        let body = serde_json::to_string_pretty(&HashMap::from([
+        let body = serde_json::to_string(&HashMap::from([
             ("model", self.model.as_str()),
             ("prompt", prompt),
         ]))?;

@@ -33,7 +33,7 @@ impl HashStorage for FileHashStorage {
     fn insert(&mut self, hash: u64) -> RagResult<()> {
         let mut data = std::fs::read(&self.0).unwrap_or_default();
         data.extend_from_slice(&hash.to_le_bytes());
-        std::fs::write(&self.0, data).unwrap();
+        std::fs::write(&self.0, data)?;
         Ok(())
     }
 }

@@ -1,9 +1,8 @@
-use rag::{RagChain, RagConfig, RagResult};
+use rag::{RagChain, RagResult};
 
 #[tokio::main]
 async fn main() -> RagResult<()> {
-    let cfg = RagConfig::default();
-    let mut chain = RagChain::with_config(cfg).await?;
+    let mut chain = RagChain::new().await?;
 
     chain.embed_directory("./data/").await?;
 

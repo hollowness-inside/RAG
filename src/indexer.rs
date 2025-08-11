@@ -7,7 +7,10 @@ use std::{
 use anyhow::Result;
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, VectorDB, db::RetrievedChunk};
+use crate::{
+    db::{RetrievedChunk, VectorDB},
+    embedder::Embedder,
+};
 
 pub struct RagIndex<E: Embedder, D: VectorDB> {
     embedder: E,

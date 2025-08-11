@@ -1,4 +1,4 @@
-use rag::{Embedder, OllamaEmbedder};
+use rag::embedder::{Embedder, OllamaEmbedder};
 
 #[tokio::test]
 async fn test_ollama_embedder() {

@@ -4,7 +4,11 @@ use ollama_rs::{
     generation::chat::{ChatMessage, request::ChatMessageRequest},
 };
 
-use crate::{Embedder, OllamaEmbedder, QdrantDB, RagIndex, RetrievedChunk, VectorDB};
+use crate::{
+    db::{QdrantDB, RetrievedChunk, VectorDB},
+    embedder::{Embedder, OllamaEmbedder},
+    indexer::RagIndex,
+};
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 

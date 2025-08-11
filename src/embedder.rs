@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
+use anyhow::{Context, Result};
 use reqwest::{Client, IntoUrl, Method, Request, Url, redirect::Policy};
 
-use crate::error::{RagError, RagResult};
-
 pub trait Embedder {
-    async fn embed(&self, text: &str) -> RagResult<Vec<f32>>;
+    async fn embed(&self, text: &str) -> Result<Vec<f32>>;
 }
 
 pub struct OllamaEmbedder {
@@ -15,7 +14,7 @@ pub struct OllamaEmbedder {
 }
 
 impl OllamaEmbedder {
-    pub async fn new<A: IntoUrl, S: ToString>(addr: A, model: S) -> RagResult<Self> {
+    pub async fn new<A: IntoUrl, S: ToString>(addr: A, model: S) -> Result<Self> {
         let client = Client::builder().redirect(Policy::none()).build()?;
 
         Ok(Self {
@@ -27,11 +26,8 @@ impl OllamaEmbedder {
 }
 
 impl Embedder for OllamaEmbedder {
-    async fn embed(&self, prompt: &str) -> RagResult<Vec<f32>> {
-        let url = self
-            .addr
-            .join("/api/embeddings")
-            .map_err(|e| RagError::Url(e.to_string()))?;
+    async fn embed(&self, prompt: &str) -> Result<Vec<f32>> {
+        let url = self.addr.join("/api/embeddings")?;
 
         let mut request = Request::new(Method::POST, url);
         request
@@ -46,12 +42,14 @@ impl Embedder for OllamaEmbedder {
 
         let response = self.client.execute(request).await?.bytes().await?;
 
-        serde_json::from_slice::<HashMap<String, Vec<f32>>>(&response)
-            .map_err(|e| RagError::Serde(e.to_string()))
-            .and_then(|json| {
-                json.get("embedding")
-                    .cloned()
-                    .ok_or_else(|| RagError::Response("No embedding found in response".to_string()))
+        serde_json::from_slice::<HashMap<String, Vec<f32>>>(&response)?
+            .get("embedding")
+            .cloned()
+            .with_context(|| {
+                format!(
+                    "Failed to extract embedding from response: {}",
+                    String::from_utf8_lossy(&response)
+                )
             })
     }
 }

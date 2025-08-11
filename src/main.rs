@@ -1,7 +1,8 @@
-use rag::{RagChain, RagConfig, RagResult};
+use anyhow::Result;
+use rag::{RagChain, RagConfig};
 
 #[tokio::main]
-async fn main() -> RagResult<()> {
+async fn main() -> Result<()> {
     let config = RagConfig {
         embed_model: "mxbai-embed-large".to_string(),
         ..Default::default()

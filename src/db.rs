@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use qdrant_client::{
     Qdrant,
     qdrant::{
@@ -6,7 +7,7 @@ use qdrant_client::{
     },
 };
 
-use crate::{RagError, RagResult, calculate_hash};
+use crate::calculate_hash;
 
 #[derive(Debug)]
 pub struct RetrievedChunk {
@@ -16,8 +17,8 @@ pub struct RetrievedChunk {
 }
 
 pub trait VectorDB {
-    async fn add_vector(&self, payload: String, source: String, vector: Vec<f32>) -> RagResult<()>;
-    async fn find(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>>;
+    async fn add_vector(&self, payload: String, source: String, vector: Vec<f32>) -> Result<()>;
+    async fn find(&self, vector: Vec<f32>) -> Result<Vec<RetrievedChunk>>;
 }
 
 pub struct QdrantDB {
@@ -26,7 +27,7 @@ pub struct QdrantDB {
 }
 
 impl QdrantDB {
-    pub async fn new(url: &str, collection: &str, vector_size: u64) -> RagResult<Self> {
+    pub async fn new(url: &str, collection: &str, vector_size: u64) -> Result<Self> {
         let client = Qdrant::from_url(url).build()?;
 
         if !client.collection_exists(collection).await? {
@@ -46,7 +47,7 @@ impl QdrantDB {
         })
     }
 
-    pub async fn connect(url: &str, collection: &str) -> RagResult<Self> {
+    pub async fn connect(url: &str, collection: &str) -> Result<Self> {
         let client = Qdrant::from_url(url).build()?;
         Ok(QdrantDB {
             client,
@@ -56,7 +57,7 @@ impl QdrantDB {
 }
 
 impl VectorDB for QdrantDB {
-    async fn add_vector(&self, payload: String, source: String, vector: Vec<f32>) -> RagResult<()> {
+    async fn add_vector(&self, payload: String, source: String, vector: Vec<f32>) -> Result<()> {
         let id = calculate_hash(&payload.to_string());
 
         let point = PointStruct::new(
@@ -74,7 +75,7 @@ impl VectorDB for QdrantDB {
         Ok(())
     }
 
-    async fn find(&self, vector: Vec<f32>) -> RagResult<Vec<RetrievedChunk>> {
+    async fn find(&self, vector: Vec<f32>) -> Result<Vec<RetrievedChunk>> {
         let collection = self.collection.clone();
         let search_request = SearchPointsBuilder::new(collection, vector, 5).with_payload(true);
 
@@ -95,15 +96,15 @@ impl VectorDB for QdrantDB {
                     similarity,
                 })
             })
-            .collect::<RagResult<_>>()?;
+            .collect::<Result<_>>()?;
         Ok(chunks)
     }
 }
 
-fn extract(x: &ScoredPoint, key: &str) -> RagResult<String> {
+fn extract(x: &ScoredPoint, key: &str) -> Result<String> {
     x.payload
         .get(key)
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
-        .ok_or(RagError::Payload(key.to_string()))
+        .with_context(|| format!("Failed to extract {} from payload", key))
 }

@@ -1,9 +1,10 @@
+use anyhow::Result;
 use ollama_rs::{
     Ollama,
     generation::chat::{ChatMessage, request::ChatMessageRequest},
 };
 
-use crate::{Embedder, OllamaEmbedder, QdrantDB, RagIndex, RagResult, RetrievedChunk, VectorDB};
+use crate::{Embedder, OllamaEmbedder, QdrantDB, RagIndex, RetrievedChunk, VectorDB};
 
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
@@ -48,11 +49,11 @@ pub struct RagChain<E: Embedder, V: VectorDB> {
 }
 
 impl RagChain<OllamaEmbedder, QdrantDB> {
-    pub async fn new() -> RagResult<Self> {
+    pub async fn new() -> Result<Self> {
         Self::with_config(RagConfig::default()).await
     }
 
-    pub async fn with_config(config: RagConfig) -> RagResult<Self> {
+    pub async fn with_config(config: RagConfig) -> Result<Self> {
         let embedder = OllamaEmbedder::new(&config.ollama_url, &config.embed_model).await?;
         let vectordb =
             QdrantDB::new(&config.qdrant_url, &config.collection, config.vector_size).await?;
@@ -60,12 +61,12 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
         Ok(Self { indexer, config })
     }
 
-    pub async fn embed_directory(&mut self, dir: &str) -> RagResult<()> {
+    pub async fn embed_directory(&mut self, dir: &str) -> Result<()> {
         self.indexer.embed_directory(dir).await
     }
 
-    pub async fn ask(&mut self, prompt: &str) -> RagResult<ChatMessage> {
-        let chunks = self.indexer.search(prompt).await?;
+    pub async fn ask(&mut self, prompt: &str) -> Result<ChatMessage> {
+        let chunks: Vec<_> = self.indexer.search(prompt).await?;
         let mut history = self.build_chat_history(&chunks, RAG_PROMPT).await?;
         let response = self.rag_request(prompt, &mut history).await?;
         Ok(response)
@@ -75,7 +76,7 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
         &self,
         query: &str,
         history: &mut Vec<ChatMessage>,
-    ) -> RagResult<ChatMessage> {
+    ) -> Result<ChatMessage> {
         let resp = Ollama::default()
             .send_chat_messages_with_history(
                 history,
@@ -94,7 +95,7 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
         &self,
         chunks: &[RetrievedChunk],
         base_prompt: &str,
-    ) -> RagResult<Vec<ChatMessage>> {
+    ) -> Result<Vec<ChatMessage>> {
         const CHUNK_START: &str = "=== DOCUMENT CHUNK START ===\n";
         const CHUNK_END: &str = "\n=== DOCUMENT CHUNK END ===";
         const SOURCE: &str = "\n[SOURCE] ";

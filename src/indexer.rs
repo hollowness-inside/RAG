@@ -4,9 +4,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Result;
 use text_splitter::{Characters, TextSplitter};
 
-use crate::{Embedder, RagResult, VectorDB, db::RetrievedChunk};
+use crate::{Embedder, VectorDB, db::RetrievedChunk};
 
 pub struct RagIndex<E: Embedder, D: VectorDB> {
     embedder: E,
@@ -25,7 +26,7 @@ impl<E: Embedder, D: VectorDB> RagIndex<E, D> {
         }
     }
 
-    pub async fn embed_directory<P: AsRef<Path>>(&mut self, path: P) -> RagResult<()> {
+    pub async fn embed_directory<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
         let entries = std::fs::read_dir(path)?;
 
         for entry in entries {
@@ -36,7 +37,7 @@ impl<E: Embedder, D: VectorDB> RagIndex<E, D> {
         Ok(())
     }
 
-    pub async fn embed_text(&mut self, text: String, source: String) -> RagResult<()> {
+    pub async fn embed_text(&mut self, text: String, source: String) -> Result<()> {
         let chunks = self.splitter.chunks(&text);
         for chunk in chunks {
             let vector = self.embedder.embed(chunk).await?;
@@ -47,7 +48,7 @@ impl<E: Embedder, D: VectorDB> RagIndex<E, D> {
         Ok(())
     }
 
-    async fn process_file(&mut self, path: PathBuf) -> RagResult<bool> {
+    async fn process_file(&mut self, path: PathBuf) -> Result<bool> {
         if path.is_file() {
             let text = match path.extension() {
                 Some(ext) if ext == "pdf" => pdf_extract::extract_text(&path)?,
@@ -67,7 +68,7 @@ impl<E: Embedder, D: VectorDB> RagIndex<E, D> {
         Ok(true)
     }
 
-    pub async fn search(&mut self, prompt: &str) -> RagResult<Vec<RetrievedChunk>> {
+    pub async fn search(&mut self, prompt: &str) -> Result<Vec<RetrievedChunk>> {
         let vector = self.embedder.embed(prompt).await?;
         let chunks = self.vector_db.find(vector).await?;
         Ok(chunks)

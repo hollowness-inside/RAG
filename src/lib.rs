@@ -1,9 +1,6 @@
 #![allow(async_fn_in_trait)]
 
-mod error;
 use std::hash::{DefaultHasher, Hash, Hasher};
-
-pub use error::{RagError, RagResult};
 
 mod embedder;
 pub use embedder::{Embedder, OllamaEmbedder};

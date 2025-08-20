@@ -13,7 +13,7 @@ use crate::{
 const RAG_PROMPT: &str = include_str!("../rag.prompt");
 
 #[derive(Debug, Clone)]
-pub struct RagConfig {
+pub struct RagBuilder {
     pub ollama_url: String,
 
     pub embed_model: String,
@@ -28,7 +28,7 @@ pub struct RagConfig {
     pub text_splitter_chunk: usize,
 }
 
-impl Default for RagConfig {
+impl Default for RagBuilder {
     fn default() -> Self {
         Self {
             ollama_url: "http://localhost:11434".to_string(),
@@ -47,22 +47,93 @@ impl Default for RagConfig {
     }
 }
 
+impl RagBuilder {
+    // Builds a RagChain with OllamaEmbedder and QdrantDB as default components.
+    pub async fn build_default(self) -> Result<RagChain<OllamaEmbedder, QdrantDB>> {
+        let embedder = OllamaEmbedder::new(&self.ollama_url, &self.embed_model).await?;
+        let vectordb = QdrantDB::new(&self.qdrant_url, &self.collection, self.vector_size).await?;
+        let indexer = RagIndex::new(embedder, vectordb, self.text_splitter_chunk);
+
+        Ok(RagChain {
+            indexer,
+            ollama_url: self.ollama_url,
+            embed_model: self.embed_model,
+            ai_model: self.ai_model,
+            qdrant_url: self.qdrant_url,
+            collection: self.collection,
+            top_k: self.top_k,
+            min_similarity: self.min_similarity,
+            vector_size: self.vector_size,
+            text_splitter_chunk: self.text_splitter_chunk,
+        })
+    }
+
+    pub fn set_ollama_url(mut self, ollama_url: String) -> Self {
+        self.ollama_url = ollama_url;
+        self
+    }
+
+    pub fn set_embed_model(mut self, embed_model: String) -> Self {
+        self.embed_model = embed_model;
+        self
+    }
+
+    pub fn set_ai_model(mut self, ai_model: String) -> Self {
+        self.ai_model = ai_model;
+        self
+    }
+
+    pub fn set_qdrant_url(mut self, qdrant_url: String) -> Self {
+        self.qdrant_url = qdrant_url;
+        self
+    }
+
+    pub fn set_collection(mut self, collection: String) -> Self {
+        self.collection = collection;
+        self
+    }
+
+    pub fn set_top_k(mut self, top_k: usize) -> Self {
+        self.top_k = top_k;
+        self
+    }
+
+    pub fn set_min_similarity(mut self, min_similarity: f32) -> Self {
+        self.min_similarity = min_similarity;
+        self
+    }
+
+    pub fn set_vector_size(mut self, vector_size: u64) -> Self {
+        self.vector_size = vector_size;
+        self
+    }
+
+    pub fn set_text_splitter_chunk(mut self, text_splitter_chunk: usize) -> Self {
+        self.text_splitter_chunk = text_splitter_chunk;
+        self
+    }
+}
+
 pub struct RagChain<E: Embedder, V: VectorDB> {
     indexer: RagIndex<E, V>,
-    config: RagConfig,
+
+    ollama_url: String,
+
+    embed_model: String,
+    ai_model: String,
+
+    qdrant_url: String,
+    collection: String,
+
+    top_k: usize,
+    min_similarity: f32,
+    vector_size: u64,
+    text_splitter_chunk: usize,
 }
 
 impl RagChain<OllamaEmbedder, QdrantDB> {
-    pub async fn new() -> Result<Self> {
-        Self::with_config(RagConfig::default()).await
-    }
-
-    pub async fn with_config(config: RagConfig) -> Result<Self> {
-        let embedder = OllamaEmbedder::new(&config.ollama_url, &config.embed_model).await?;
-        let vectordb =
-            QdrantDB::new(&config.qdrant_url, &config.collection, config.vector_size).await?;
-        let indexer = RagIndex::new(embedder, vectordb, config.text_splitter_chunk);
-        Ok(Self { indexer, config })
+    pub fn builder() -> RagBuilder {
+        RagBuilder::default()
     }
 
     pub async fn embed_directory(&mut self, dir: &str) -> Result<()> {
@@ -85,7 +156,7 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
             .send_chat_messages_with_history(
                 history,
                 ChatMessageRequest::new(
-                    self.config.ai_model.clone(),
+                    self.ai_model.clone(),
                     vec![ChatMessage::user(query.into())],
                 ),
             )
@@ -106,8 +177,8 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
 
         let retrieved = chunks
             .iter()
-            .take(self.config.top_k)
-            .filter(|p| p.similarity >= self.config.min_similarity)
+            .take(self.top_k)
+            .filter(|p| p.similarity >= self.min_similarity)
             .map(|res| {
                 let mut content = String::with_capacity(
                     res.content.len()
@@ -125,7 +196,7 @@ impl RagChain<OllamaEmbedder, QdrantDB> {
                 ChatMessage::system(content)
             });
 
-        let mut history = Vec::with_capacity(1 + self.config.top_k);
+        let mut history = Vec::with_capacity(1 + self.top_k);
         history.push(ChatMessage::system(base_prompt.to_string()));
         history.extend(retrieved);
         Ok(history)

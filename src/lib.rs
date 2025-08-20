@@ -1,7 +1,7 @@
 #![allow(async_fn_in_trait)]
 
 pub mod chain;
-pub use chain::{RagChain, RagConfig};
+pub use chain::{RagChain, RagBuilder};
 
 pub mod db;
 pub mod embedder;

@@ -1,14 +1,13 @@
 use anyhow::Result;
-use rag::{RagChain, RagConfig};
+use rag::RagChain;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = RagConfig {
-        embed_model: "mxbai-embed-large".to_string(),
-        ..Default::default()
-    };
-
-    let mut chain = RagChain::with_config(config).await?;
+    let mut chain = RagChain::builder()
+        .set_embed_model("mxbai-embed-large".to_string())
+        .set_ai_model("qwen3:latest".to_string())
+        .build_default()
+        .await?;
 
     chain.embed_directory("./data/").await?;
 

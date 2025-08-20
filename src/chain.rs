@@ -56,15 +56,9 @@ impl RagBuilder {
 
         Ok(RagChain {
             indexer,
-            ollama_url: self.ollama_url,
-            embed_model: self.embed_model,
             ai_model: self.ai_model,
-            qdrant_url: self.qdrant_url,
-            collection: self.collection,
             top_k: self.top_k,
             min_similarity: self.min_similarity,
-            vector_size: self.vector_size,
-            text_splitter_chunk: self.text_splitter_chunk,
         })
     }
 
@@ -117,18 +111,9 @@ impl RagBuilder {
 pub struct RagChain<E: Embedder, V: VectorDB> {
     indexer: RagIndex<E, V>,
 
-    ollama_url: String,
-
-    embed_model: String,
     ai_model: String,
-
-    qdrant_url: String,
-    collection: String,
-
     top_k: usize,
     min_similarity: f32,
-    vector_size: u64,
-    text_splitter_chunk: usize,
 }
 
 impl RagChain<OllamaEmbedder, QdrantDB> {
